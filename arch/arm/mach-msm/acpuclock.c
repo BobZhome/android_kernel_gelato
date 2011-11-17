@@ -214,6 +214,7 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_1200[] = {
 	{ 0, 400000, ACPU_PLL_2, 2, 2, 133333, 2, 5, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 160000, 2, 6, 122880 },
 	{ 1, 600000, ACPU_PLL_2, 2, 1, 200000, 2, 7, 122880 },
+
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0}, {0, 0, 0} }
 };
 
@@ -242,6 +243,16 @@ static struct clkctl_acpu_speed pll0_960_pll1_245_pll2_800[] = {
 	{ 0, 400000, ACPU_PLL_2, 2, 1, 133333, 2, 5, 122880 },
 	{ 1, 480000, ACPU_PLL_0, 4, 1, 160000, 2, 6, 122880 },
 	{ 1, 800000, ACPU_PLL_2, 2, 0, 200000, 3, 7, 122880 },
+	// OC HACK insert additional freqs
+	{ 1, 806400, ACPU_PLL_0, 4, 0, 201600, 3, 7, 122880 },
+	{ 1, 825600, ACPU_PLL_0, 4, 0, 206400, 3, 7, 122880 },
+	{ 1, 844800, ACPU_PLL_0, 4, 0, 211200, 3, 7, 122880 },
+	{ 1, 864000, ACPU_PLL_0, 4, 0, 216000, 3, 7, 122880 },
+	{ 1, 880000, ACPU_PLL_0, 4, 0, 220000, 3, 7, 122880 },
+	{ 1, 892000, ACPU_PLL_0, 4, 0, 223000, 3, 7, 122880 },
+	{ 1, 900000, ACPU_PLL_0, 4, 0, 225000, 3, 7, 122880 },
+        { 1, 928000, ACPU_PLL_0, 4, 0, 232000, 3, 7, 122880 },
+	// OC HACK end
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0, 0}, {0, 0, 0} }
 };
 
@@ -430,7 +441,8 @@ static int acpuclk_set_vdd_level(int vdd)
 /* Set proper dividers for the given clock speed. */
 static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 {
-	uint32_t reg_clkctl, reg_clksel, clk_div, src_sel;
+	// OC HACK
+	uint32_t reg_clkctl, reg_clksel, clk_div, src_sel, a11_div;
 
 	reg_clksel = readl(A11S_CLK_SEL_ADDR);
 
@@ -438,6 +450,16 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 	clk_div = (reg_clksel >> 1) & 0x03;
 	/* CLK_SEL_SRC1NO */
 	src_sel = reg_clksel & 1;
+
+	// OC HACK
+	a11_div = hunt_s->a11clk_src_div;
+
+	if (hunt_s->a11clk_khz>600000) {
+		a11_div=0;
+		writel(hunt_s->a11clk_khz/19200, PLLn_L_VAL(0));
+		udelay(50);
+	}
+	// OC HACK end
 
 	/*
 	 * If the new clock divider is higher than the previous, then
@@ -452,7 +474,9 @@ static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
 	/* Program clock source and divider */
 	reg_clkctl = readl(A11S_CLK_CNTL_ADDR);
 	reg_clkctl &= ~(0xFF << (8 * src_sel));
+	reg_clkctl |=a11_div; // OC HACK: add 1 line
 	reg_clkctl |= hunt_s->a11clk_src_sel << (4 + 8 * src_sel);
+	reg_clkctl |=a11_div; // OC HACK: add 1 line
 	reg_clkctl |= hunt_s->a11clk_src_div << (0 + 8 * src_sel);
 	writel(reg_clkctl, A11S_CLK_CNTL_ADDR);
 
@@ -689,9 +713,11 @@ static void __init acpuclk_init(void)
 	}
 
 	drv_state.current_speed = speed;
+	// OC HACK
 	if (speed->pll != ACPU_PLL_TCXO)
 		if (pc_pll_request(speed->pll, 1))
 			pr_warning("Failed to vote for boot PLL\n");
+	// OC HACK END
 
 	res = ebi1_clk_set_min_rate(CLKVOTE_ACPUCLK, speed->axiclk_khz * 1000);
 	if (res < 0)
@@ -934,8 +960,10 @@ void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *clkdata)
 	pr_info("acpu_clock_init()\n");
 
 	mutex_init(&drv_state.lock);
+	// OC HACK
 	if (cpu_is_msm7x27())
 		shared_pll_control_init();
+	// OC HACK END
 	drv_state.acpu_switch_time_us = clkdata->acpu_switch_time_us;
 	drv_state.max_speed_delta_khz = clkdata->max_speed_delta_khz;
 	drv_state.vdd_switch_time_us = clkdata->vdd_switch_time_us;
