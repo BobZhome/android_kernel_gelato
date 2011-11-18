@@ -111,7 +111,11 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 			/* skip line. sym is used as dummy to
 			 * shut of "warn_unused_result" warning.
 			 */
-			sym = fgets(str, 500, in);
+			char *tmp = fgets(str, 500, in);
+
+			/* shut unused-result warning up */
+			if (!tmp)
+				str[0] = '\0';
 		}
 		return -1;
 	}

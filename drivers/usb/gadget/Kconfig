@@ -853,8 +853,6 @@ config USB_G_PRINTER
 
 config USB_ANDROID
 	boolean "Android Gadget"
-	depends on SWITCH
-	default y
 	help
 	  The Android gadget driver supports multiple USB functions.
 	  The functions can be configured via a board file and may be
@@ -1081,7 +1079,6 @@ config USB_G_WEBCAM
 
 config USB_QCOM_MAEMO
         tristate "Qcom gadget compositon for Maemo"
-        default n
 	select MODEM_SUPPORT
 	select USB_CSW_HACK
 	help
@@ -1224,7 +1221,7 @@ config LGE_MACH_BRYCE
 
 # LGE_CHANGE_S [jaeho.cho@lge.com] 2010-09-07, LG_FW_ANDROID_UMS_WORKAROUND_PATCH
 config LGE_UMS_WORKAROUND_PATCH
-	tristate "LG UMS Workaround Patch"
+	boolean "LG UMS Workaround Patch"
 	depends on USB_GADGET
 	help
 	  LG UMS Workaround Patch
